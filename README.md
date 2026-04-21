@@ -2,9 +2,17 @@
 
 ## Project Overview
 
-This project was built to simulate a secure Azure web deployment using a segmented virtual network, subnet-level security controls, a management access path, and a Standard Public Load Balancer placed in front of a private IIS web server.
+This hands-on Azure infrastructure project was built to simulate a secure web deployment using segmented networking, subnet-level traffic controls, a management access path, and a Standard Public Load Balancer placed in front of a private IIS web server.
 
-The goal was to build something that reflected real infrastructure thinking rather than just a basic VM deployment. Instead of assigning a public IP directly to the web server, the environment was designed so that the web tier stayed private and HTTP traffic was exposed only through the load balancer. Administrative access was kept separate through a management path.
+This project was developed as an extension of my earlier [Azure Secure Network Lab](https://github.com/ft9mayank/Azure-Secure-Network-Lab), which established the initial jumpbox-based secure access model and private web server architecture.
+
+The goal was to move beyond basic VM deployment and design a more realistic cloud architecture. Instead of assigning a public IP directly to the web server, the environment was built so that the web tier remained private and HTTP traffic was exposed only through the Load Balancer frontend. Administrative access was kept separate through a management VM.
+
+---
+
+## Architecture Snapshot
+
+**Architecture:** Management subnet with jumpbox VM, private web subnet with IIS VM, dedicated application subnet, NSG-based traffic control, and a Standard Public Load Balancer for controlled public access.
 
 ---
 
@@ -17,7 +25,7 @@ Design and implement a secure Azure web architecture that:
 - Keeps the web server private
 - Exposes HTTP traffic through a Standard Public Load Balancer
 - Applies NSG-based traffic control at the subnet level
-- Works within free-tier / low-quota Azure constraints
+- Works within Azure free-tier / low-quota constraints
 
 ---
 
@@ -26,19 +34,18 @@ Design and implement a secure Azure web architecture that:
 This project was intentionally designed under realistic limitations:
 
 - Maximum of **2 Windows Server VMs**
-- Needed to work under **Azure free-tier / limited vCPU quota**
+- Needed to work within **Azure free-tier / limited vCPU quota**
 - Web server should **not** have a direct public IP
 - Administrative access should be separated from public web traffic
 - Public access should be validated only through the **Load Balancer frontend IP**
-- Architecture should be documented clearly enough to explain in interviews
+- The environment should be documented clearly enough to explain in interviews
 
-These constraints shaped the final design and forced the implementation to stay practical and cost-conscious.
+These constraints shaped the design and forced the implementation to stay practical, cost-conscious, and architecture-focused.
 
 ---
 
-## Architecture Summary
+## Core Components
 
-### Core Components
 - **Virtual Network:** `vnet-mv-india-01`
 - **Subnets:**
   - `snet-mgmt`
@@ -51,10 +58,8 @@ These constraints shaped the final design and forced the implementation to stay 
 - **Virtual Machines:**
   - `vm-mv-jump-01` → management / jumpbox VM
   - `vm-mv-web-01` → private IIS web server
-- **Load Balancer:**
-  - `lb-mv-web-public`
-- **Public IP:**
-  - `pip-mv-lb-web`
+- **Load Balancer:** `lb-mv-web-public`
+- **Public IP:** `pip-mv-lb-web`
 
 ---
 
@@ -62,8 +67,8 @@ These constraints shaped the final design and forced the implementation to stay 
 
 ### Administrative Access
 1. RDP access is allowed only to the **jumpbox VM**
-2. The jumpbox sits in the **management subnet**
-3. From there, internal administrative access can be used to reach other private resources
+2. The jumpbox is placed in the **management subnet**
+3. Internal administrative access can then be used to manage private resources
 
 ### Web Access
 1. Users connect to the **public IP of the Standard Load Balancer**
@@ -71,44 +76,47 @@ These constraints shaped the final design and forced the implementation to stay 
 3. If the backend is healthy, traffic is forwarded to the private IIS web server in the **web subnet**
 4. The web VM itself does **not** require a direct public IP
 
-This pattern separates public web access from direct server exposure and reflects a stronger security design than exposing the VM directly.
+This approach separates public web access from direct server exposure and creates a stronger security posture than exposing the VM directly.
 
 ---
 
 ## Security Design
 
-### 1. Segmented Subnets
-The environment is split into separate subnets for management, web, and application roles. This keeps responsibilities isolated and makes traffic control easier.
+### Segmented Subnets
+The environment is split into separate subnets for management, web, and application roles. This improves isolation and simplifies traffic control.
 
-### 2. NSG-Based Control
-Subnet-level NSGs are used to control traffic:
+### NSG-Based Access Control
+Subnet-level NSGs are used to define and restrict traffic paths:
 
 - `nsg-mv-mgmt` protects the management subnet
 - `nsg-mv-web` allows HTTP traffic to the web subnet and restricts administrative access
 - `nsg-mv-app` allows RDP only from the management subnet
 
-### 3. Private Web Server
-The IIS server is hosted on a private VM and accessed publicly only through the Load Balancer frontend.
+### Private Web Server
+The IIS server runs on a private VM and is publicly accessible only through the Load Balancer frontend.
 
-### 4. Management Path
-Instead of opening broad administrative access, a separate management VM is used as the controlled entry point.
+### Controlled Management Path
+Instead of allowing broad direct access, a separate management VM is used as the administrative entry point.
 
 ---
 
 ## Implementation Summary
 
-### Phase 1: Existing Secure Network Base
-An earlier secure network setup already included:
-- a jumpbox VM
-- a web VM
-- segmented management and web subnets
-- initial NSG structure
+### Phase 1: Foundation from Previous Project
+This project was built as a direct extension of my earlier **Azure Secure Network Lab**, where I first deployed a secure 2-tier Azure environment with:
+
+- a jumpbox VM in the management subnet
+- a private IIS web VM in the web subnet
+- subnet segmentation for management and web tiers
+- NSG-based access restrictions to control administrative traffic
+
+That earlier project established the secure access model and private backend design. This project builds on that same environment by extending the architecture with an application subnet and introducing a Standard Public Load Balancer to expose the private web tier through a controlled frontend path instead of direct VM exposure.
 
 ### Phase 2: Architecture Expansion
-This project expanded the environment by:
+This project extended the design by:
 - adding an **application subnet**
-- creating and attaching `nsg-mv-app`
-- defining subnet-level separation more clearly
+- creating and associating `nsg-mv-app`
+- strengthening subnet-level separation
 - preserving the jumpbox-based management model
 
 ### Phase 3: Public Web Exposure Through Load Balancer
@@ -119,22 +127,20 @@ The web VM remained private while a Standard Public Load Balancer was added with
 - load balancing rule for HTTP traffic
 
 ### Phase 4: Validation
-The architecture was validated by:
+The environment was validated by:
 - confirming IIS worked on the private web VM
-- confirming the backend health probe turned healthy
+- confirming the backend health probe became healthy
 - accessing the IIS page successfully through the **Load Balancer public IP**
 
 ---
 
-## Validation Results
+## Outcome
 
-Successful validation points:
-
-- IIS was reachable locally on the web VM
-- NSG rules allowed the intended traffic paths
-- HTTP probe returned healthy status
-- Load Balancer frontend successfully served the IIS page publicly
-- Web server remained private while still being publicly reachable through the correct path
+- Successfully exposed a private IIS web server through a **Standard Public Load Balancer**
+- Validated backend availability using an **HTTP health probe**
+- Preserved subnet segmentation and management-path-based administrative access
+- Implemented the environment under **free-tier compute constraints**
+- Built a more realistic Azure architecture than a simple single-VM deployment
 
 ---
 
@@ -193,19 +199,18 @@ This project helped reinforce the difference between simply deploying VMs and de
 
 Key takeaways:
 - why keeping backend systems private is better than assigning public IPs directly
-- how subnet segmentation improves control and clarity
+- how subnet segmentation improves security and clarity
 - how NSGs shape traffic flow between tiers
 - how Azure Load Balancer health probes determine backend availability
-- how to design under quota and cost constraints without losing architectural quality
+- how to build useful projects even under quota and cost constraints
 
 ---
 
 ## Future Improvements
 
-Planned next steps for this project:
-
+Planned next steps:
 - add **Azure Monitor / Log Analytics**
-- expand the app tier further
+- expand the application tier further
 - export the resource group as **ARM / Bicep**
 - add an architecture diagram
 - document cost-control strategy for deallocated resources
